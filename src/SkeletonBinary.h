@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-spSkeletonData* spSkeletonBinary_readSkeletonData(const char* skeketonPath, spAtlas* atlas, float scale);
+spSkeletonData *spSkeletonBinary_readSkeletonData(const char *skeketonPath, spAtlas *atlas, float scale);
 
 #ifdef __cplusplus
 }

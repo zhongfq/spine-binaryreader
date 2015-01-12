@@ -10,65 +10,43 @@
 #include <math.h>
 
 typedef enum {
-    SP_TIMELINE_FIX_SCALE,
-    SP_TIMELINE_FIX_ROTATE,
-    SP_TIMELINE_FIX_TRANSLATE,
-    SP_TIMELINE_FIX_ATTACHMENT,
-    SP_TIMELINE_FIX_COLOR,
-    SP_TIMELINE_FIX_EVENT,
-    SP_TIMELINE_FIX_DRAWORDER,
-    SP_TIMELINE_FIX_FFD,
-    SP_TIMELINE_FIX_IK,
-    SP_TIMELINE_FIX_FLIPX,
-    SP_TIMELINE_FIX_FLIPY,
-} spTimelineTypeFix;
-
-typedef enum {
-    SP_CURVE_FIX_LINEAR,
-    SP_CURVE_FIX_STEPPED,
-    SP_CURVE_FIX_BEZIER,
-} spCurveTypeFix;
+    SP_CURVE_LINEAR,
+    SP_CURVE_STEPPED,
+    SP_CURVE_BEZIER,
+} spCurveType;
 
 typedef struct {
-    spSkeletonJson* json;
+    spSkeletonJson *json;
     float scale;
-    char* rawdata;
-    char* reader;
-    char** strs;
+    char *rawdata;
+    char *reader;
+    char **strs;
 } spSkeletonBinary;
 
 #define MIN(a, b) (((a)<(b))?(a):(b))
 #define MAX(a, b) (((a)>(b))?(a):(b))
 #define READ() (((int)*self->reader++) & 0xFF)
 
-#define readColor(__target__)               \
-do {                                        \
-    (__target__)->r = READ() / (float)255;  \
-    (__target__)->g = READ() / (float)255;  \
-    (__target__)->b = READ() / (float)255;  \
-    (__target__)->a = READ() / (float)255;  \
-} while (0)
-
-static int readBoolean(spSkeletonBinary* self)
+static int readBoolean(spSkeletonBinary *self)
 {
     int ch = READ();
     return ch != 0;
 }
 
-static char readChar(spSkeletonBinary* self)
+static char readChar(spSkeletonBinary *self)
 {
     int ch = READ();
     return (char)(ch);
 }
 
-static short readShort(spSkeletonBinary* self)
+static short readShort(spSkeletonBinary *self)
 {
     int ch1 = READ();
     int ch2 = READ();
     return (short)((ch1 << 8) + (ch2 << 0));
 }
 
-static int readInt(spSkeletonBinary* self)
+static int readInt(spSkeletonBinary *self)
 {
     int ch1 = READ();
     int ch2 = READ();
@@ -77,7 +55,7 @@ static int readInt(spSkeletonBinary* self)
     return ((ch1 << 24) | (ch2 << 16) | (ch3 << 8) | (ch4 << 0));
 }
 
-static float readFloat(spSkeletonBinary* self)
+static float readFloat(spSkeletonBinary *self)
 {
     union {
         float f;
@@ -88,16 +66,16 @@ static float readFloat(spSkeletonBinary* self)
     return u.f;
 }
 
-static const char* readString(spSkeletonBinary* self)
+static const char *readString(spSkeletonBinary *self)
 {
     short index = readShort(self);
     if (index < 0) return NULL;
     return self->strs[index];
 }
 
-static float* readFloats(spSkeletonBinary* self, float scale, size_t* length)
+static float *readFloats(spSkeletonBinary *self, float scale, size_t *length)
 {
-    float* arr;
+    float *arr;
     int i;
     int n = readInt(self);
     *length = n;
@@ -110,9 +88,9 @@ static float* readFloats(spSkeletonBinary* self, float scale, size_t* length)
     return arr;
 }
 
-static int* readShorts(spSkeletonBinary* self, size_t* length)
+static int *readShorts(spSkeletonBinary *self, size_t *length)
 {
-    int* arr;
+    int *arr;
     int i;
     int n = readInt(self);
     *length = n;
@@ -125,19 +103,27 @@ static int* readShorts(spSkeletonBinary* self, size_t* length)
     return arr;
 }
 
-static spAttachment* readAttachment(spSkeletonBinary* self, spSkin* Skin, const char* attachmentName)
+static void readColor(spSkeletonBinary *self, float *r, float *g, float *b, float *a)
+{
+    *r = READ() / (float)255;
+    *g = READ() / (float)255;
+    *b = READ() / (float)255;
+    *a = READ() / (float)255;
+}
+
+static spAttachment *readAttachment(spSkeletonBinary *self, spSkin *Skin, const char *attachmentName)
 {
     float scale = self->scale;
-    const char* name = readString(self);
+    const char *name = readString(self);
     if (name == NULL) name = attachmentName;
 
     switch (readChar(self))
     {
         case SP_ATTACHMENT_REGION:
         {
-            spAttachment* attachment;
-            spRegionAttachment* region;
-            const char* path = readString(self);
+            spAttachment *attachment;
+            spRegionAttachment *region;
+            const char *path = readString(self);
             if (path == NULL) path = name;
 
             attachment = spAttachmentLoader_newAttachment(self->json->attachmentLoader, 
@@ -152,8 +138,7 @@ static spAttachment* readAttachment(spSkeletonBinary* self, spSkin* Skin, const 
             region->rotation = readFloat(self);
             region->width = readFloat(self) * scale;
             region->height = readFloat(self) * scale;
-
-            readColor(region);
+            readColor(self, &region->r, &region->g, &region->b, &region->a);
 
             spRegionAttachment_updateOffset(region);
 
@@ -163,21 +148,21 @@ static spAttachment* readAttachment(spSkeletonBinary* self, spSkin* Skin, const 
         {
             size_t length;
 
-            spAttachment* attachment = spAttachmentLoader_newAttachment(self->json->attachmentLoader,
+            spAttachment *attachment = spAttachmentLoader_newAttachment(self->json->attachmentLoader,
                 Skin, SP_ATTACHMENT_BOUNDING_BOX, attachmentName, NULL);
-            spBoundingBoxAttachment* box = SUB_CAST(spBoundingBoxAttachment, attachment);
+            spBoundingBoxAttachment *box = SUB_CAST(spBoundingBoxAttachment, attachment);
 
             box->vertices = readFloats(self, scale, &length);
-            box->verticesCount = length;
+            box->verticesCount = (int)length;
 
             return SUPER_CAST(spAttachment, box);
         }
         case SP_ATTACHMENT_MESH: 
         {
             size_t length;
-            spAttachment* attachment;
-            spMeshAttachment* mesh;
-            const char* path = readString(self);
+            spAttachment *attachment;
+            spMeshAttachment *mesh;
+            const char *path = readString(self);
             if (path == NULL) path = name;
 
             attachment = spAttachmentLoader_newAttachment(self->json->attachmentLoader, 
@@ -187,14 +172,13 @@ static spAttachment* readAttachment(spSkeletonBinary* self, spSkin* Skin, const 
 
             mesh->regionUVs = readFloats(self, 1, &length);
             mesh->triangles = readShorts(self, &length);
-            mesh->trianglesCount = length;
+            mesh->trianglesCount = (int)length;
             mesh->vertices = readFloats(self, scale, &length);
-            mesh->verticesCount = length;
-            spMeshAttachment_updateUVs(mesh);
-
-            readColor(mesh);
-
+            mesh->verticesCount = (int)length;
+            readColor(self, &mesh->r, &mesh->g, &mesh->b, &mesh->a);
             mesh->hullLength = readInt(self) * 2;
+
+            spMeshAttachment_updateUVs(mesh);
 
             return SUPER_CAST(spAttachment, mesh);
         }
@@ -202,9 +186,9 @@ static spAttachment* readAttachment(spSkeletonBinary* self, spSkin* Skin, const 
         {
             int verticesCount, b, w, nn, i;
             size_t length;
-            spAttachment* attachment;
-            spSkinnedMeshAttachment* mesh;
-            const char* path = readString(self);
+            spAttachment *attachment;
+            spSkinnedMeshAttachment *mesh;
+            const char *path = readString(self);
             if (path == NULL) path = name;
 
             attachment = spAttachmentLoader_newAttachment(self->json->attachmentLoader, 
@@ -213,9 +197,9 @@ static spAttachment* readAttachment(spSkeletonBinary* self, spSkin* Skin, const 
             if (path) MALLOC_STR(mesh->path, path);
             
             mesh->regionUVs = readFloats(self, 1, &length);
-            mesh->uvsCount = length;
+            mesh->uvsCount = (int)length;
             mesh->triangles = readShorts(self, &length);
-            mesh->trianglesCount = length;
+            mesh->trianglesCount = (int)length;
 
             verticesCount = readInt(self);
 
@@ -235,11 +219,10 @@ static spAttachment* readAttachment(spSkeletonBinary* self, spSkin* Skin, const 
                     mesh->weights[w + 2] = readFloat(self);
                 }
             }
-            spSkinnedMeshAttachment_updateUVs(mesh);
-            
-            readColor(mesh);
-
+            readColor(self, &mesh->r, &mesh->g, &mesh->b, &mesh->a);
             mesh->hullLength = readInt(self) * 2;
+
+            spSkinnedMeshAttachment_updateUVs(mesh);
 
             return SUPER_CAST(spAttachment, mesh);
         }
@@ -248,7 +231,7 @@ static spAttachment* readAttachment(spSkeletonBinary* self, spSkin* Skin, const 
     return NULL;
 }
 
-static spSkin* readSkin(spSkeletonBinary* self, const char* skinName)
+static spSkin *readSkin(spSkeletonBinary *self, const char *skinName)
 {
     spSkin *skin;
     int i;
@@ -262,7 +245,7 @@ static spSkin* readSkin(spSkeletonBinary* self, const char* skinName)
         int slotIndex = readInt(self);
         for (ii = 0, nn = readInt(self); ii < nn; ii++)
         {
-            const char* name = readString(self);
+            const char *name = readString(self);
             spSkin_addAttachment(skin, slotIndex, name, readAttachment(self, skin, name));
         }
     }
@@ -270,14 +253,14 @@ static spSkin* readSkin(spSkeletonBinary* self, const char* skinName)
     return skin;
 }
 
-static void readCurve(spSkeletonBinary* self, spCurveTimeline* timeline, int frameIndex)
+static void readCurve(spSkeletonBinary *self, spCurveTimeline *timeline, int frameIndex)
 {
-    spCurveTypeFix type = (spCurveTypeFix)readChar(self);
-    if (type == SP_CURVE_FIX_STEPPED)
+    spCurveType type = (spCurveType)readChar(self);
+    if (type == SP_CURVE_STEPPED)
     {
         spCurveTimeline_setStepped(timeline, frameIndex);
     }
-    else if (type == SP_CURVE_FIX_BEZIER)
+    else if (type == SP_CURVE_BEZIER)
     {
         float v1 = readFloat(self);
         float v2 = readFloat(self);
@@ -287,11 +270,11 @@ static void readCurve(spSkeletonBinary* self, spCurveTimeline* timeline, int fra
     }
 }
 
-static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, const char* name)
+static void readAnimation(spSkeletonBinary *self, spSkeletonData *skeletonData, const char *name)
 {
     int i, ii, n, nn;
     float scale = self->scale;
-    spAnimation* animation = spAnimation_create(name, readInt(self));
+    spAnimation *animation = spAnimation_create(name, readInt(self));
     animation->timelinesCount = 0;
 
     // Slot timelines
@@ -307,9 +290,9 @@ static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, 
             int framesCount = readInt(self);
             switch (timelineType)
             {
-                case SP_TIMELINE_FIX_COLOR:
+                case SP_TIMELINE_COLOR:
                 {
-                    spColorTimeline* timeline = spColorTimeline_create(framesCount);
+                    spColorTimeline *timeline = spColorTimeline_create(framesCount);
                     timeline->slotIndex = slotIndex;
                     for (frameIndex = 0; frameIndex < framesCount; frameIndex++)
                     {
@@ -326,9 +309,9 @@ static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, 
                     animation->duration = MAX(animation->duration, timeline->frames[framesCount * 5 - 5]);
                     break;
                 }
-                case SP_TIMELINE_FIX_ATTACHMENT:
+                case SP_TIMELINE_ATTACHMENT:
                 {
-                    spAttachmentTimeline* timeline = spAttachmentTimeline_create(framesCount);
+                    spAttachmentTimeline *timeline = spAttachmentTimeline_create(framesCount);
                     timeline->slotIndex = slotIndex;
                     for (frameIndex = 0; frameIndex < framesCount; frameIndex++)
                     {
@@ -352,11 +335,11 @@ static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, 
         for (ii = 0; ii < nn; ii++)
         {
             int frameIndex;
-            spTimelineTypeFix timelineType = (spTimelineTypeFix)readChar(self);
+            spTimelineType timelineType = (spTimelineType)readChar(self);
             int framesCount = readInt(self);
             switch (timelineType)
             {
-                case SP_TIMELINE_FIX_ROTATE:
+                case SP_TIMELINE_ROTATE:
                 {
                     spRotateTimeline *timeline = spRotateTimeline_create(framesCount);
                     timeline->boneIndex = boneIndex;
@@ -372,12 +355,12 @@ static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, 
                     animation->duration = MAX(animation->duration, timeline->frames[framesCount * 2 - 2]);
                     break;
                 }
-                case SP_TIMELINE_FIX_TRANSLATE:
-                case SP_TIMELINE_FIX_SCALE:
+                case SP_TIMELINE_TRANSLATE:
+                case SP_TIMELINE_SCALE:
                 {
-                    spTranslateTimeline* timeline;
+                    spTranslateTimeline *timeline;
                     float timelineScale = 1;
-                    if (timelineType == SP_TIMELINE_FIX_SCALE)
+                    if (timelineType == SP_TIMELINE_SCALE)
                     {
                         timeline = spScaleTimeline_create(framesCount);
                     }
@@ -400,10 +383,10 @@ static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, 
                     animation->duration = MAX(animation->duration, timeline->frames[framesCount * 3 - 3]);
                     break;
                 }
-                case SP_TIMELINE_FIX_FLIPX:
-                case SP_TIMELINE_FIX_FLIPY:
+                case SP_TIMELINE_FLIPX:
+                case SP_TIMELINE_FLIPY:
                 {
-                    spFlipTimeline* timeline = spFlipTimeline_create(framesCount, timelineType == SP_TIMELINE_FIX_FLIPX);
+                    spFlipTimeline *timeline = spFlipTimeline_create(framesCount, timelineType == SP_TIMELINE_FLIPX);
                     timeline->boneIndex = boneIndex;
                     for (frameIndex = 0; frameIndex < framesCount; frameIndex++)
                     {
@@ -414,6 +397,8 @@ static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, 
                     animation->duration = MAX(animation->duration, timeline->frames[framesCount * 2 - 2]);
                     break;
                 }
+                default:
+                    break;
             }
         }
     }
@@ -425,7 +410,7 @@ static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, 
         int frameIndex;
         int index = readInt(self);
         int framesCount = readInt(self);
-        spIkConstraintTimeline* timeline = spIkConstraintTimeline_create(framesCount);
+        spIkConstraintTimeline *timeline = spIkConstraintTimeline_create(framesCount);
         timeline->ikConstraintIndex = index;
         for (frameIndex = 0; frameIndex < framesCount; frameIndex++)
         {
@@ -444,7 +429,7 @@ static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, 
     n = readInt(self);
     for (i = 0; i < n; i++)
     {
-        spSkin* skin = skeletonData->skins[readInt(self)];
+        spSkin *skin = skeletonData->skins[readInt(self)];
         nn = readInt(self);
         for (ii = 0; ii < nn; ii++)
         {
@@ -456,10 +441,10 @@ static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, 
                 int frameIndex = 0;
                 int framesCount = 0;
                 int verticesCount = 0;         
-                float* tempVertices;
+                float *tempVertices;
                 spFFDTimeline *timeline;
 
-                spAttachment* attachment = spSkin_getAttachment(skin, slotIndex, readString(self));
+                spAttachment *attachment = spSkin_getAttachment(skin, slotIndex, readString(self));
                 if (attachment->type == SP_ATTACHMENT_MESH)
                     verticesCount = SUB_CAST(spMeshAttachment, attachment)->verticesCount;
                 else if (attachment->type == SP_ATTACHMENT_SKINNED_MESH)
@@ -473,7 +458,7 @@ static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, 
                 tempVertices = MALLOC(float, verticesCount);
                 for (frameIndex = 0; frameIndex < framesCount; frameIndex++)
                 {
-                    float* frameVertices;
+                    float *frameVertices;
                     float time = readFloat(self);
                     int start = readInt(self);
                     int end = readInt(self);
@@ -505,7 +490,7 @@ static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, 
                         memset(frameVertices + v, 0, sizeof(float) * (verticesCount - v));
                         if (attachment->type == SP_ATTACHMENT_MESH) 
                         {
-                            float* meshVertices = SUB_CAST(spMeshAttachment, attachment)->vertices;
+                            float *meshVertices = SUB_CAST(spMeshAttachment, attachment)->vertices;
                             for (v = 0; v < verticesCount; ++v)
                                 frameVertices[v] += meshVertices[v];
                         }
@@ -527,14 +512,14 @@ static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, 
     if (n > 0)
     {
         int* drawOrder = 0;
-        spDrawOrderTimeline* timeline = spDrawOrderTimeline_create(n, skeletonData->slotsCount);
+        spDrawOrderTimeline *timeline = spDrawOrderTimeline_create(n, skeletonData->slotsCount);
         int slotCount = skeletonData->slotsCount;
         int frameIndex;
         for (frameIndex = 0; frameIndex < n; frameIndex++)
         {
             int originalIndex = 0, unchangedIndex = 0;
             int offsetCount = readInt(self);
-            int* unchanged = MALLOC(int, skeletonData->slotsCount - offsetCount);
+            int *unchanged = MALLOC(int, skeletonData->slotsCount - offsetCount);
             drawOrder = MALLOC(int, skeletonData->slotsCount);
             for (ii = slotCount - 1; ii >= 0; ii--)
                 drawOrder[ii] = -1;
@@ -562,14 +547,14 @@ static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, 
     n = readInt(self);
     if (n > 0)
     {
-        spEventTimeline* timeline = spEventTimeline_create(n);
+        spEventTimeline *timeline = spEventTimeline_create(n);
         int frameIndex;
         for (frameIndex = 0; frameIndex < n; frameIndex++)
         {
-            spEvent* event;
-            const char* stringValue;
+            spEvent *event;
+            const char *stringValue;
             float time = readFloat(self);
-            spEventData* eventData = skeletonData->events[readInt(self)];
+            spEventData *eventData = skeletonData->events[readInt(self)];
             event = spEvent_create(eventData);
             event->intValue = readInt(self);
             event->floatValue = readFloat(self);
@@ -584,27 +569,33 @@ static void readAnimation(spSkeletonBinary* self, spSkeletonData* skeletonData, 
     skeletonData->animations[skeletonData->animationsCount++] = animation;
 }
 
-static spSkeletonData* readSkeleton(spSkeletonBinary* self)
+static spSkeletonData *readSkeleton(spSkeletonBinary *self)
 {
     int size, i;
-    spSkeletonData* skeletonData;
+    spSkeletonData *skeletonData;
     float scale = self->scale;
 
     FREE(self->json->error);
-    CONST_CAST(char*, self->json->error) = 0;
+    CONST_CAST(char *, self->json->error) = 0;
 
     skeletonData = spSkeletonData_create();
 
+    // Header
+    skeletonData->hash = readString(self);
+    skeletonData->version = readString(self);
+    skeletonData->width = readFloat(self);
+    skeletonData->height = readFloat(self);
+
     // Bones
     size = readInt(self);
-    skeletonData->bones = MALLOC(spBoneData*, size);
+    skeletonData->bones = MALLOC(spBoneData *, size);
     for (i = 0; i < size; i++)
     {
-        spBoneData* parent = NULL;
-        spBoneData* boneData;
+        spBoneData *parent = NULL;
+        spBoneData *boneData;
         int parentIndex;
 
-        const char* name = readString(self);
+        const char *name = readString(self);
         parentIndex = readInt(self);
         if (parentIndex > -1) parent = skeletonData->bones[parentIndex];
         boneData = spBoneData_create(name, parent);
@@ -614,6 +605,8 @@ static spSkeletonData* readSkeleton(spSkeletonBinary* self)
         boneData->scaleY = readFloat(self);
         boneData->rotation = readFloat(self);
         boneData->length = readFloat(self) * scale;
+        boneData->flipX = readBoolean(self);
+        boneData->flipY = readBoolean(self);
         boneData->inheritScale = readBoolean(self);
         boneData->inheritRotation = readBoolean(self);
         skeletonData->bones[i] = boneData;
@@ -622,13 +615,13 @@ static spSkeletonData* readSkeleton(spSkeletonBinary* self)
     
     //ik
     size = readInt(self);
-    skeletonData->ikConstraints = MALLOC(spIkConstraintData*, size);
+    skeletonData->ikConstraints = MALLOC(spIkConstraintData *, size);
     for (i = 0; i < size; i++)
     {
         int n;
-        spIkConstraintData* ik = spIkConstraintData_create(readString(self));
+        spIkConstraintData *ik = spIkConstraintData_create(readString(self));
         int boneCount = readInt(self);
-        ik->bones = MALLOC(spBoneData*, boneCount);
+        ik->bones = MALLOC(spBoneData *, boneCount);
         for (n = 0; n < boneCount; n++)
         {
             ik->bones[ik->bonesCount++] = skeletonData->bones[readInt(self)];
@@ -642,18 +635,16 @@ static spSkeletonData* readSkeleton(spSkeletonBinary* self)
     size = readInt(self);
     if (size > 0)
     {
-        skeletonData->slots = MALLOC(spSlotData*, size);
+        skeletonData->slots = MALLOC(spSlotData *, size);
         for (i = 0; i < size; i++) {
-            const char* attachment;
-            spBoneData* boneData;
-            spSlotData* slotData;
+            const char *attachment;
+            spBoneData *boneData;
+            spSlotData *slotData;
            
-            const char* name = readString(self);
+            const char *name = readString(self);
             boneData = skeletonData->bones[readInt(self)];
             slotData = spSlotData_create(name, boneData);
-
-            readColor(slotData);
-
+            readColor(self, &slotData->r, &slotData->g, &slotData->b, &slotData->a);
             attachment = readString(self);
             if (attachment) spSlotData_setAttachmentName(slotData, attachment);
 
@@ -669,11 +660,11 @@ static spSkeletonData* readSkeleton(spSkeletonBinary* self)
     // Skins
     if (size > 0)
     {
-        skeletonData->skins = MALLOC(spSkin*, size);
+        skeletonData->skins = MALLOC(spSkin *, size);
         for (i = 0; i < size; i++)
         {
-            const char* name = readString(self);
-            spSkin* skin = readSkin(self, name);
+            const char *name = readString(self);
+            spSkin *skin = readSkin(self, name);
             skeletonData->skins[skeletonData->skinsCount] = skin;
             ++skeletonData->skinsCount;
             if (strcmp("default", name) == 0)
@@ -685,11 +676,11 @@ static spSkeletonData* readSkeleton(spSkeletonBinary* self)
     size = readInt(self);
     if (size > 0)
     {
-        const char* stringValue;
-        skeletonData->events = MALLOC(spEventData*, size);
+        const char *stringValue;
+        skeletonData->events = MALLOC(spEventData *, size);
         for (i = 0; i < size; i++)
         {
-            spEventData* eventData = spEventData_create(readString(self));
+            spEventData *eventData = spEventData_create(readString(self));
             eventData->intValue = readInt(self);
             eventData->floatValue = readFloat(self);
             stringValue = readString(self);
@@ -702,10 +693,10 @@ static spSkeletonData* readSkeleton(spSkeletonBinary* self)
     size = readInt(self);
     if (size > 0)
     {
-        skeletonData->animations = MALLOC(spAnimation*, size);
+        skeletonData->animations = MALLOC(spAnimation *, size);
         for (i = 0; i < size; i++)
         {
-            const char* name = readString(self);
+            const char *name = readString(self);
             readAnimation(self, skeletonData, name);
         }
     }
@@ -713,13 +704,13 @@ static spSkeletonData* readSkeleton(spSkeletonBinary* self)
     return skeletonData;
 }
 
-static void initStrs(spSkeletonBinary* self)
+static void initStrs(spSkeletonBinary *self)
 {
     int size, i;
     int skip = readInt(self);
     self->reader = self->rawdata + skip;
     size = readInt(self);
-    self->strs = (char**)malloc(sizeof(char*) * size);
+    self->strs = (char **)malloc(sizeof(char *) * size);
     for (i = 0; i < size; i++)
     {
         int len = readShort(self);
@@ -731,12 +722,12 @@ static void initStrs(spSkeletonBinary* self)
     self->reader = self->rawdata + 4;
 }
 
-spSkeletonData* spSkeletonBinary_readSkeletonData(const char* skeketonPath, spAtlas* atlas, float scale)
+spSkeletonData *spSkeletonBinary_readSkeletonData(const char *skeketonPath, spAtlas *atlas, float scale)
 {
     int length;
-    spSkeletonData* skeketon;
-    spSkeletonBinary* self;
-    self = (spSkeletonBinary*)malloc(sizeof(spSkeletonBinary));
+    spSkeletonData *skeketon;
+    spSkeletonBinary *self;
+    self = (spSkeletonBinary *)malloc(sizeof(spSkeletonBinary));
     self->scale = scale;
     self->json = spSkeletonJson_create(atlas);
     self->json->scale = scale;

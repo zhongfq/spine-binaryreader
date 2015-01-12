@@ -17,8 +17,8 @@ local timelinetypes = {
     scale       = 0,
     rotate      = 1,
     translate   = 2,
-    attachment  = 3,
-    color       = 4,
+    color       = 3,
+    attachment  = 4,
     event       = 5,
     draworder   = 6,
     ffd         = 7,
@@ -71,9 +71,9 @@ end
 
 
 local function writeBool(value)
-    if value == 0 or value == nil then
+    if value == 0 or value == nil or value == false then
         value = false
-    elseif value == 1 then
+    else
         value = true
     end
     file:bool(value)
@@ -344,6 +344,17 @@ local function makeupTimelines()
 end
 
 -------------------------------------------------------------------------------
+-- header
+-------------------------------------------------------------------------------
+local function writeHeader()
+    data.skeleton = data.skeleton or {}
+    writeString(nil) -- no hash
+    writeString(data.spine)
+    writeFloat(data.width or 0)
+    writeFloat(data.height or 0)
+end
+
+-------------------------------------------------------------------------------
 -- bones
 -------------------------------------------------------------------------------
 local function writeBones()
@@ -358,8 +369,8 @@ local function writeBones()
         writeFloat(bone.scaleY or 1)
         writeFloat(bone.rotation or 0)
         writeFloat(bone.length or 0)
-        --writeBool(bone.flipX)
-        --writeBool(bone.flipY)
+        writeBool(bone.flipX)
+        writeBool(bone.flipY)
         writeBool(bone.inheritScale or 1)
         writeBool(bone.inheritRotation or 1)
     end
@@ -720,6 +731,7 @@ function convert(json, filename)
     initNameIndex()
     trimSlotTimelines()
     makeupTimelines()
+    writeHeader()
     writeBones()
     writeIKs()
     writeSlots()
