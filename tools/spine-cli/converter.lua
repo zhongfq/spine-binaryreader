@@ -349,9 +349,9 @@ end
 local function writeHeader()
     data.skeleton = data.skeleton or {}
     writeString(nil) -- no hash
-    writeString(data.spine)
-    writeFloat(data.width or 0)
-    writeFloat(data.height or 0)
+    writeString(data.skeleton.spine)
+    writeFloat(data.skeleton.width or 0)
+    writeFloat(data.skeleton.height or 0)
 end
 
 -------------------------------------------------------------------------------

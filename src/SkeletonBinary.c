@@ -27,26 +27,28 @@ typedef struct {
 #define MAX(a, b) (((a)>(b))?(a):(b))
 #define READ() (((int)*self->reader++) & 0xFF)
 
-static int readBoolean(spSkeletonBinary *self)
+#define inline __inline
+
+static inline int readBoolean(spSkeletonBinary *self)
 {
     int ch = READ();
     return ch != 0;
 }
 
-static char readChar(spSkeletonBinary *self)
+static inline char readChar(spSkeletonBinary *self)
 {
     int ch = READ();
     return (char)(ch);
 }
 
-static short readShort(spSkeletonBinary *self)
+static inline short readShort(spSkeletonBinary *self)
 {
     int ch1 = READ();
     int ch2 = READ();
     return (short)((ch1 << 8) + (ch2 << 0));
 }
 
-static int readInt(spSkeletonBinary *self)
+static inline int readInt(spSkeletonBinary *self)
 {
     int ch1 = READ();
     int ch2 = READ();
@@ -55,7 +57,7 @@ static int readInt(spSkeletonBinary *self)
     return ((ch1 << 24) | (ch2 << 16) | (ch3 << 8) | (ch4 << 0));
 }
 
-static float readFloat(spSkeletonBinary *self)
+static inline float readFloat(spSkeletonBinary *self)
 {
     union {
         float f;
@@ -66,14 +68,14 @@ static float readFloat(spSkeletonBinary *self)
     return u.f;
 }
 
-static const char *readString(spSkeletonBinary *self)
+static inline const char *readString(spSkeletonBinary *self)
 {
     short index = readShort(self);
     if (index < 0) return NULL;
     return self->strs[index];
 }
 
-static float *readFloats(spSkeletonBinary *self, float scale, size_t *length)
+static inline float *readFloats(spSkeletonBinary *self, float scale, size_t *length)
 {
     float *arr;
     int i;
@@ -88,7 +90,7 @@ static float *readFloats(spSkeletonBinary *self, float scale, size_t *length)
     return arr;
 }
 
-static int *readShorts(spSkeletonBinary *self, size_t *length)
+static inline int *readShorts(spSkeletonBinary *self, size_t *length)
 {
     int *arr;
     int i;
@@ -103,7 +105,7 @@ static int *readShorts(spSkeletonBinary *self, size_t *length)
     return arr;
 }
 
-static void readColor(spSkeletonBinary *self, float *r, float *g, float *b, float *a)
+static inline void readColor(spSkeletonBinary *self, float *r, float *g, float *b, float *a)
 {
     *r = READ() / (float)255;
     *g = READ() / (float)255;
@@ -572,6 +574,7 @@ static void readAnimation(spSkeletonBinary *self, spSkeletonData *skeletonData, 
 static spSkeletonData *readSkeleton(spSkeletonBinary *self)
 {
     int size, i;
+    const char* buff;
     spSkeletonData *skeletonData;
     float scale = self->scale;
 
@@ -581,8 +584,10 @@ static spSkeletonData *readSkeleton(spSkeletonBinary *self)
     skeletonData = spSkeletonData_create();
 
     // Header
-    skeletonData->hash = readString(self);
-    skeletonData->version = readString(self);
+    if ((buff = readString(self)) != NULL) 
+        MALLOC_STR(skeletonData->hash, buff);
+    if ((buff = readString(self)) != NULL) 
+        MALLOC_STR(skeletonData->version, buff);
     skeletonData->width = readFloat(self);
     skeletonData->height = readFloat(self);
 
