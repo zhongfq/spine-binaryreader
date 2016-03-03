@@ -555,12 +555,13 @@ static void readAnimation(spSkeletonBinary *self, spSkeletonData *skeletonData, 
         {
             spEvent *event;
             const char *stringValue;
-            float time = readFloat(self);
             spEventData *eventData = skeletonData->events[readInt(self)];
+            float time = readFloat(self);
             event = spEvent_create(eventData);
             event->intValue = readInt(self);
             event->floatValue = readFloat(self);
-            stringValue = readBoolean(self) ? readString(self) : eventData->stringValue;
+            stringValue = readString(self);
+//            stringValue = readBoolean(self) ? readString(self) : eventData->stringValue;
             if (stringValue) MALLOC_STR(event->stringValue, stringValue);
             spEventTimeline_setFrame(timeline, frameIndex, time, event);
         }
