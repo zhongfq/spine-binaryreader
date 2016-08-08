@@ -1,5 +1,5 @@
 //
-// $id: SkeletonBinary.h 2014-08-06 zhongfengqu $
+// $id: SkeletonBinary.h https://github.com/zhongfq/spine-binaryreader $
 //
 
 #ifndef __SKELETONBINARY_H__
@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-spSkeletonData *spSkeletonBinary_readSkeletonData(const char *skeketonPath, spAtlas *atlas, float scale);
+spSkeletonData *spSkeletonBinary_readSkeletonData(const char *skeketonPath, spAttachmentLoader *attachmentLoader, float scale);
 
 #ifdef __cplusplus
 }

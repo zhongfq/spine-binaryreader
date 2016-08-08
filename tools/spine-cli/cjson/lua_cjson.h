@@ -1,8 +1,12 @@
-#ifndef _lua_cjson_h
-#define _lua_cjson_h
+
+#ifndef __LUA_CJSON_H_
+#define __LUA_CJSON_H_
 
 #include "lua.h"
 
-LUALIB_API int luaopen_cjson(lua_State *l);
+#define USE_INTERNAL_FPCONV
 
-#endif
+int luaopen_cjson(lua_State *l);
+int luaopen_cjson_safe(lua_State *l);
+
+#endif // __LUA_CJSON_H_

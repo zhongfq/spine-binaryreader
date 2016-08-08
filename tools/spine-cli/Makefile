@@ -1,17 +1,15 @@
-CFLAGS = -g -Wall
+CFLAGS = -g -Wall -std=c99 -Ilua
 SRC := \
-spine.c \
-spinebinary.c \
-cjson/cJSON.c \
-cjson/dtoa.c \
 cjson/fpconv.c \
-cjson/g_fmt.c \
 cjson/lua_cjson.c \
 cjson/strbuf.c \
 lua/lapi.c \
 lua/lauxlib.c \
 lua/lbaselib.c \
+lua/lbitlib.c \
 lua/lcode.c \
+lua/lcorolib.c \
+lua/lctype.c \
 lua/ldblib.c \
 lua/ldebug.c \
 lua/ldo.c \
@@ -35,13 +33,15 @@ lua/ltable.c \
 lua/ltablib.c \
 lua/ltm.c \
 lua/lundump.c \
+lua/lutf8lib.c \
 lua/lvm.c \
 lua/lzio.c \
-lua/print.c 
+spinec.c \
+spinewriter.c
 
 spine:
-	gcc $(CFLAGS) -o spine $(SRC)
+	gcc $(CFLAGS) -o spinec $(SRC)
 
 clean:
-	find . -name "spine" -o -name "spine.exe" | xargs rm -v
+	find . -name "spinec" -o -name "spine.exe" | xargs rm -v
 	rm -rvf spine.dSYM
