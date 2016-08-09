@@ -128,7 +128,7 @@ static inline float readFloat(spSkeletonBinary *self)
 
 static inline char *readString(spSkeletonBinary *self)
 {
-    char *current, *start;
+    char *start, *end;
     _spStringBuffer *buffer = self->buffer;
     int byteCount = readVarint(self, true);
  
@@ -146,36 +146,12 @@ static inline char *readString(spSkeletonBinary *self)
     }
     
     start = buffer->content + buffer->position;
-    current = start;
-    byteCount--;
-    for (int i = 0; i < byteCount;) {
-        int b = READ();
-        switch (b >> 4) {
-            case -1:
-                break;
-            case 12:
-            case 13: {
-                int b2 = READ();
-                *current++ = (char)((b & 0x1F) << 6 | (b2 & 0x3F));
-                i += 2;
-                break;
-            }
-            case 14: {
-                int b2 = READ();
-                int b3 = READ();
-                *current++ = (char)((b & 0x0F) << 12 | (b2 & 0x3F) << 6 | (b3 & 0x3F));
-                i += 3;
-                break;
-            }
-            default: {
-                *current++ = (char)b;
-                i++;
-            }
-        }
+    end = start;
+    while (--byteCount) {
+        *end++ =(char)READ();
     }
-    
-    *current++ = '\0';
-    buffer->position += (int)(current - start);
+    *end++ = '\0';
+    buffer->position += (int)(end - start);
     
     return start;
 }
