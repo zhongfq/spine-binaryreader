@@ -408,7 +408,7 @@ local function writeIKs()
         end
         writeVarint(boneame2idx[ik.target] or 0, true)
         writeFloat(ik.mix or 1)
-        writeByte((ik.bendPositive or 1) ~= 0 and 1 or -1)
+        writeByte(ik.bendPositive ~= false and 1 or -1)
     end
 end
 
@@ -732,7 +732,7 @@ local function writeAnimationIKs(iks)
         for i, frame in ipairs(timeline) do
             writeFloat(frame.time or 0)
             writeFloat(frame.mix or 1)
-            writeByte((frame.bendPositive or 1) ~= 0 and 1 or -1)
+            writeByte(frame.bendPositive ~= false and 1 or -1)
             if i < #timeline then
                 writeCurve(frame.curve)
             end
