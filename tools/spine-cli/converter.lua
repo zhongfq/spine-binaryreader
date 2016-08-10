@@ -14,6 +14,14 @@ local ikname2idx = {}
 local transformname2idx = {}
 local pathname2idx = {}
 
+local function optionalBool(value, default)
+    if value == nil then
+        return default
+    else
+        return value
+    end
+end
+
 local function writeBool(value)
     if value == 0 or value == nil or value == false then
         value = false
@@ -360,8 +368,8 @@ local function writeBones()
         writeFloat(bone.shearX or 0)
         writeFloat(bone.shearY or 0)
         writeFloat(bone.length or 0)
-        writeBool(bone.inheritScale or 1)
-        writeBool(bone.inheritRotation or 1)
+        writeBool(optionalBool(bone.inheritRotation, 1))
+        writeBool(optionalBool(bone.inheritScale, 1))
     end
 end
 
@@ -546,15 +554,15 @@ local function writeAttachment(attachment)
         writeColor(attachment.color)
         writeString(attachment.skin)
         writeString(attachment.parent)
-        writeBool(attachment.deform or 1)
+        writeBool(optionalBool(attachment.deform, 1))
     elseif attachment.type == "path" then
         attachment.vertexCount = attachment.vertexCount or 0
         local vertexCount = calculateVertexCount(attachment.vertices,
             attachment.vertexCount << 1)
         assert(vertexCount == attachment.vertexCount, attachment.name)
         assert(vertexCount / 3 == #attachment.lengths, attachment.name)
-        writeBool(attachment.closed or 0)
-        writeBool(attachment.constantSpeed or 1)
+        writeBool(optionalBool(attachment.closed, 0))
+        writeBool(optionalBool(attachment.constantSpeed, 1))
         writeVarint(vertexCount, true)
         writeVertices(attachment.vertices, attachment.vertexCount << 1)
         writeRawFloats(attachment.lengths)
@@ -793,7 +801,7 @@ local function writeAnimationDeforms(deforms)
         writeVarint(skinname2idx[skin], true)
         writeVarint(#slotNames, true)
         for _, slot in ipairs(slotNames) do
-            local timelinenames = deforms[skin][slot]
+            local timelinenames = getSortedNames(deforms[skin][slot])
             writeVarint(slotname2idx[slot], true)
             writeVarint(#timelinenames, true)
             for _, name in ipairs(timelinenames) do
@@ -802,7 +810,7 @@ local function writeAnimationDeforms(deforms)
                 writeVarint(#timeline, true)
                 for i, frame in ipairs(timeline) do
                     frame.vertices = frame.vertices or {}
-                    writeVarint(frame.time or 0)
+                    writeFloat(frame.time or 0)
                     writeVarint(#frame.vertices, true)
                     writeVarint(frame.offset or 0, true)
                     writeRawFloats(frame.vertices)
