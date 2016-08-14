@@ -266,7 +266,6 @@ local function makeupTimelines()
     end
 
     local attachments = {}
-    local flips = {}
     local colors = {}
     local hasDrawOrder = false
     for animationname, animation in pairs(data.animations) do
@@ -275,13 +274,6 @@ local function makeupTimelines()
             colors[slotname] = colors[slotname] or slot.color
         end
         hasDrawOrder = animation.drawOrder or hasDrawOrder
-        for bonename, bone in pairs(animation.bones or {}) do
-            if bone.flipX or bone.flipY then
-                flips[bonename] = flips[bonename] or {}
-                flips[bonename].flipX = flips[bonename].flipX or bone.flipX
-                flips[bonename].flipY = flips[bonename].flipY or bone.flipY
-            end
-        end
     end
 
     for animationname, animation in pairs(data.animations) do
@@ -308,25 +300,6 @@ local function makeupTimelines()
                     color = data.slots[slotname2idx[slotname] + 1].color or "ffffffff",
                     curve = "stepped",
                 })
-            end
-        end
-
-        for bonename, flip in pairs(flips) do
-            if next(flip) then
-                bones[bonename] = bones[bonename] or {}
-                if flip.flipX then
-                    bones[bonename].flipX = bones[bonename].flipX or {}
-                    table.insert(bones[bonename].flipX, 1, {
-                        time = 0,
-                        x = data.bones[boneame2idx[bonename] + 1].flipX,
-                    })
-                elseif flip.flipY then
-                    bones[bonename].flipY = bones[bonename].flipY or {}
-                    table.insert(bones[bonename].flipY, 1, {
-                        time = 0,
-                        x = data.bones[boneame2idx[bonename] + 1].flipY,
-                    })
-                end
             end
         end
 
@@ -812,8 +785,10 @@ local function writeAnimationDeforms(deforms)
                     frame.vertices = frame.vertices or {}
                     writeFloat(frame.time or 0)
                     writeVarint(#frame.vertices, true)
-                    writeVarint(frame.offset or 0, true)
-                    writeRawFloats(frame.vertices)
+                    if #frame.vertices > 0 then
+                        writeVarint(frame.offset or 0, true)
+                        writeRawFloats(frame.vertices)
+                    end
                     if i < #timeline then
                         writeCurve(frame.curve)
                     end
