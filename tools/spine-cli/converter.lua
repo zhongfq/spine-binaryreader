@@ -268,10 +268,16 @@ local function makeupTimelines()
     local attachments = {}
     local colors = {}
     local hasDrawOrder = false
+    local scales = {}
+    local shears = {}
     for animationname, animation in pairs(data.animations) do
         for slotname, slot in pairs(animation.slots or {}) do
             attachments[slotname] = attachments[slotname] or slot.attachment
             colors[slotname] = colors[slotname] or slot.color
+        end
+        for bonename, bone in pairs(animation.bones or {}) do
+            scales[bonename] = scales[bonename] or bone.scale
+            shears[bonename] = shears[bonename] or bone.shear
         end
         hasDrawOrder = animation.drawOrder or hasDrawOrder
     end
@@ -291,6 +297,7 @@ local function makeupTimelines()
                 })
             end
         end
+
         for slotname, _ in pairs(colors) do
             slots[slotname] = slots[slotname] or {}
             if not slots[slotname].color or slots[slotname].color[1].time > 0 then
@@ -298,6 +305,32 @@ local function makeupTimelines()
                 table.insert(slots[slotname].color, 1, {
                     time = 0,
                     color = data.slots[slotname2idx[slotname] + 1].color or "ffffffff",
+                    curve = "stepped",
+                })
+            end
+        end
+
+        for bonename, _ in pairs(scales) do
+            bones[bonename] = bones[bonename] or {}
+            if not bones[bonename].scale or bones[bonename].scale[1].time > 0 then
+                bones[bonename].scale = bones[bonename].scale or {}
+                table.insert(bones[bonename].scale, 1, {
+                    time = 0,
+                    x = data.bones[boneame2idx[bonename] + 1].scaleX or 1,
+                    y = data.bones[boneame2idx[bonename] + 1].scaleY or 1,
+                    curve = "stepped",
+                })
+            end
+        end
+
+        for bonename, _ in pairs(shears) do
+            bones[bonename] = bones[bonename] or {}
+            if not bones[bonename].shear or bones[bonename].shear[1].time > 0 then
+                bones[bonename].shear = bones[bonename].shear or {}
+                table.insert(bones[bonename].shear, 1, {
+                    time = 0,
+                    x = data.bones[boneame2idx[bonename] + 1].shearX or 0,
+                    y = data.bones[boneame2idx[bonename] + 1].shearY or 0,
                     curve = "stepped",
                 })
             end
