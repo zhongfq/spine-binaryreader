@@ -655,9 +655,9 @@ static spAnimation *readAnimation(spSkeletonBinary *self, const char *name)
                     float *deform;
                     int end = readVarint(self, true);
                     if (end == 0)
-                        deform = weighted ? MALLOC(float, deformLength) : vertices;
+                        deform = weighted ? CALLOC(float, deformLength) : vertices;
                     else {
-                        deform = MALLOC(float, deformLength);
+                        deform = CALLOC(float, deformLength);
                         int start = readVarint(self, true);
                         end += start;
                         if (scale == 1) {
@@ -692,11 +692,11 @@ static spAnimation *readAnimation(spSkeletonBinary *self, const char *name)
         for (int frameIndex = 0; frameIndex < frameCount; frameIndex++) {
             float time = readFloat(self);
             int offsetCount = readVarint(self, true);
-            int *drawOrder = MALLOC(int, slotCount);
+            int *drawOrder = CALLOC(int, slotCount);
             for (int ii = slotCount - 1; ii >= 0; ii--) {
                 drawOrder[ii] = -1;
             }
-            int *unchanged = MALLOC(int, slotCount - offsetCount);
+            int *unchanged = CALLOC(int, slotCount - offsetCount);
             int originalIndex = 0, unchangedIndex = 0;
             for (int ii = 0; ii < offsetCount; ii++) {
                 int slotIndex = readVarint(self, true);
