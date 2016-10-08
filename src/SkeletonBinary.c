@@ -26,7 +26,7 @@
 #define CURVE_STEPPED   1
 #define CURVE_BEZIER    2
 
-#define READ() (((int)self->data->content[self->data->position++]) & 0xFF)
+#define READ() ((int)((unsigned char)self->data->content[self->data->position++]))
 
 typedef struct {
     const char* parent;
